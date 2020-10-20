@@ -4,32 +4,49 @@
 
 auto const promptString = "lisp";
 
+using std::cin;
+using std::cout;
+using std::endl;
 using std::string;
 using std::istream;
 using std::ostream;
 
-string read(ostream&, istream&);
-void print(ostream&);
+void printPrompt();
+string read();
+string eval();
+void printResult(string);
+
+istream& currentInput = cin;
+ostream& currentOutput = cout;
 
 int main()
 {
-    istream& currentInput = std::cin;
-    ostream& currentOutput = std::cout;
-
-    read(currentOutput, currentInput);
-
-    print(currentOutput);
+ 
+    printPrompt();
+    string userInput = read();
+    string result = eval();
+    printResult(result);
 }
 
-string read(ostream& output, istream& input)
+
+string read()
 {
     string userInput;
-    output << promptString << "> ";
-    std::getline(input, userInput);
+    std::getline(currentInput, userInput);
     return userInput;
 }
 
-void print(ostream& output)
+string eval()
 {
-    output << "Result";
+    return "result";
+}
+
+void printPrompt()
+{
+    currentOutput << promptString << "> ";
+}
+
+void printResult(string result)
+{
+    currentOutput << result << endl;
 }
