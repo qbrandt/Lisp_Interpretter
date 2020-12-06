@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -140,6 +140,16 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="LISP Interpretter.cpp" />
+    <ClCompile Include="LispElement.cpp" />
+    <ClCompile Include="LispList.cpp" />
+    <ClCompile Include="LispSymbol.cpp" />
+    <ClCompile Include="LispTypes.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="LispElement.h" />
+    <ClInclude Include="LispList.h" />
+    <ClInclude Include="LispDataType.h" />
+    <ClInclude Include="LispSymbol.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

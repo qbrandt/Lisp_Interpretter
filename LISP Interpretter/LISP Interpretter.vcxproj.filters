@@ -18,5 +18,31 @@
     <ClCompile Include="LISP Interpretter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="LispElement.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="LispList.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="LispSymbol.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="LispTypes.h">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="LispDataType.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="LispElement.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="LispList.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="LispSymbol.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
