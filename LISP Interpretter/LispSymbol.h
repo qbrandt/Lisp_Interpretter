@@ -14,3 +14,5 @@ public:
 	string Name;
 };
 
+bool operator==(const LispSymbol& l, const LispSymbol& r);
+bool operator<(const LispSymbol& l, const LispSymbol& r);

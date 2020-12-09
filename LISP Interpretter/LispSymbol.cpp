@@ -12,3 +12,13 @@ LispSymbol::LispSymbol(string name)
 LispSymbol::~LispSymbol()
 {
 }
+
+bool operator==(const LispSymbol& l, const LispSymbol& r)
+{
+	return l.Name == r.Name;
+}
+
+bool operator<(const LispSymbol& l, const LispSymbol& r)
+{
+	return l.Name < r.Name;
+}

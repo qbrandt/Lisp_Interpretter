@@ -1,13 +1,14 @@
 #pragma once
 #include<list>
-#include"LispTypes.h"
+//#include<memory>
+#include"LispElement.h"
 
 using std::list;
 
-using std::shared_ptr;
-using std::dynamic_pointer_cast;
-
-typedef shared_ptr<LispElement> ElemPtr;
+//using std::shared_ptr;
+//using std::dynamic_pointer_cast;
+//
+//typedef shared_ptr<LispElement> ElemPtr;
 //typedef shared_ptr<LispList> ListPtr;
 // ListCast dynamic_pointer_cast<LispList> ;
 // shared_ptr<LispSymbol> SymPtr;
@@ -18,6 +19,6 @@ class LispList : public LispElement
 public:
 	LispList();
 	~LispList();
-	list<ElemPtr> Value; //Won't allow dotted pair, but easier
+	list<LispElement*> Value; //Won't allow dotted pair, but easier
 };
 

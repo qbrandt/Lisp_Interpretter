@@ -3,4 +3,6 @@
 #include"LispElement.h"
 #include"LispSymbol.h"
 #include"LispList.h"
-#include<memory>
+#include"LispFunc.h"
+#include"LispNumber.h"
+//#include<memory>

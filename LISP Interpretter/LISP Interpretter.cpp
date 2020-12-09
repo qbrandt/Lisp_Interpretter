@@ -1,3 +1,5 @@
+//Author: Quinn Brandt
+
 #include <iostream>
 #include<ostream>
 #include<string>
@@ -5,7 +7,17 @@
 #include<vector>
 #include<algorithm>
 #include<memory>
+#include <cstdlib>
 #include"LispTypes.h"
+#include"Environment.h"
+
+//For full disclosure, I looked at the following lisp interpretter
+//to help with some problems I encountered. However I never copy/pasted 
+//parts or directly used parts of it. However, some parts of my architecture
+//do share some resemblance as a result. Enough of the code that follows
+//however, is mine and mine alone, so I feel confident to call it my own.
+//The other interpretter: 
+//https://gist.github.com/ofan/721464/e1893899739abf7f3e4167bbb722b0420799047f
 
 auto const promptString = "lisp";
 
@@ -17,34 +29,47 @@ using std::istream;
 using std::ostream;
 using std::vector;
 using std::istringstream;
+//
+//using std::shared_ptr;
+//using std::dynamic_pointer_cast;
+//
+//typedef shared_ptr<LispElement> ElemPtr;
+//typedef shared_ptr<LispList> LispList*;
+//typedef shared_ptr<LispSymbol> LispSymbol*;
+//typedef shared_ptr<LispFunc> FuncPtr;
+//typedef shared_ptr<LispNumber> NumPtr;
 
-using std::shared_ptr;
-using std::dynamic_pointer_cast;
-
-typedef shared_ptr<LispElement> ElemPtr;
-typedef shared_ptr<LispList> ListPtr;
-#define ListCast dynamic_pointer_cast<LispList> ;
-typedef shared_ptr<LispSymbol> SymPtr;
-//#define SymCast dynamic_pointer_cast<LispSymbol>;
+typedef std::pair<LispSymbol, LispElement*> EnvPair;
 
 void printPrompt();
 string read();
-ListPtr parse(string);
-ElemPtr eval(ListPtr);
-void printResult(ElemPtr);
+LispList* parse(string);
+LispElement* eval(LispElement*);
+void printResult(LispElement*);
+void initializeEnvironment(Environment*);
 
 istream& currentInput = cin;
 ostream& currentOutput = cout;
 
+Environment* GlobalEnvironment = new Environment();
+LispSymbol* nil = new LispSymbol("nil");
+LispSymbol* T = new LispSymbol("T");
+bool quit = false;
+
 int main()
 {
- 
-    printPrompt();
-    string userInput = read();
-    ListPtr parsed = parse(userInput);
-    ElemPtr result = eval(parsed);
-    //ElemPtr result = ElemPtr(new LispSymbol("a"));
-    printResult(result);
+    initializeEnvironment(GlobalEnvironment);
+    LispElement* i = GlobalEnvironment->Lookup(*(new LispSymbol("+")));
+    while (!quit)
+    {
+        printPrompt();
+        string userInput = read();
+        LispList* parsed = parse(userInput);
+        parsed = (LispList*)(parsed->Value.front());
+        LispElement* result = eval(parsed);
+        printResult(result);
+        cout << endl;
+    }
 }
 
 
@@ -55,9 +80,29 @@ string read()
     return userInput;
 }
 
-ElemPtr eval(ListPtr list)
+LispElement* eval(LispElement* elem, Environment* environment)
 {
-    return list;
+    if (elem->DataType == LispDataType::SYMBOL)
+    {
+        LispSymbol* sym = (LispSymbol*)(elem);
+        LispElement* i = environment->Lookup(*sym);
+        return environment->Lookup(*sym);
+    }
+    if (elem->DataType == LispDataType::LIST)
+    {
+        LispList* list = (LispList*)(elem);
+        LispElement* front = list->Value.front();
+        list->Value.pop_front();
+        auto evalResult = eval(front);
+        auto lispFunc = (LispFunc*)(evalResult);
+        auto result = lispFunc->func(list);
+
+    }
+}
+
+LispElement* eval(LispElement* elem)
+{
+    return eval(elem, GlobalEnvironment);
 }
 
 void printPrompt()
@@ -65,16 +110,21 @@ void printPrompt()
     currentOutput << promptString << "> ";
 }
 
-void printResult(ElemPtr element)
+void printResult(LispElement* element)
 {
     if (element->DataType == LispDataType::SYMBOL)
     {
-        SymPtr sym = dynamic_pointer_cast<LispSymbol>(element);
+        LispSymbol* sym = (LispSymbol*)(element);
         cout << sym->Name;
+    }
+    else if (element->DataType == LispDataType::NUMBER)
+    {
+        LispNumber* num = (LispNumber*)(element);
+        cout << num->Value;
     }
     else if (element->DataType == LispDataType::LIST)
     {
-        ListPtr list = dynamic_pointer_cast<LispList>(element);
+        LispList* list = (LispList*)(element);
         cout << "(";
         for (auto i = list->Value.begin(); i != list->Value.end();i++)
         {
@@ -89,9 +139,16 @@ void printResult(ElemPtr element)
     //currentOutput << result << endl;
 }
 
+//https://stackoverflow.com/questions/29169153/how-do-i-verify-a-string-is-valid-double-even-if-it-has-a-point-in-it/29169235
+bool isNumber(const std::string& s)
+{
+    char* end = nullptr;
+    double val = strtod(s.c_str(), &end);
+    return end != s.c_str() && *end == '\0' && val != HUGE_VAL;
+}
 
 
-void parse(istream& sin, ListPtr list)
+void parse(istream& sin, LispList* list)
 {
     if (!sin.eof())
     {
@@ -106,7 +163,7 @@ void parse(istream& sin, ListPtr list)
         unsigned int listEnd = token.find(')');
         if (listStart != string::npos)
         {
-            ListPtr innerList = ListPtr(new LispList());
+            LispList* innerList = new LispList();
             parse(sin, innerList);
             list->Value.push_back(innerList);
             parse(sin, list);
@@ -116,33 +173,37 @@ void parse(istream& sin, ListPtr list)
         {
             return;
         }
+        else if (isNumber(token))
+        {
+            list->Value.push_back(new LispNumber(std::stod(token)));
+            parse(sin, list);
+        }
         else //is Symbol
         { 
             if (token == "'")
             {
-                ListPtr quoteList = ListPtr(new LispList());
-                quoteList->Value.push_back(SymPtr(new LispSymbol("QUOTE")));
+                LispList* quoteList = new LispList();
+                quoteList->Value.push_back(new LispSymbol("QUOTE"));
                 parse(sin, quoteList);
                 list->Value.push_back(quoteList);
             }
             else
             {
-                list->Value.push_back(SymPtr(new LispSymbol(token)));
+                list->Value.push_back(new LispSymbol(token));
                 parse(sin, list);
-
             }
         }
     }
 }
 
-ListPtr parse(istream& sin)
+LispList* parse(istream& sin)
 {
-    ListPtr result = ListPtr(new LispList());
+    LispList* result = new LispList();
     parse(sin, result);
     return result;
 }
 
-ListPtr parse(string input)
+LispList* parse(string input)
 {
     string specialSpaceChars[] = {"(",")"};
 
@@ -159,4 +220,48 @@ ListPtr parse(string input)
     }
     istringstream sin(input);
     return parse(sin);
+}
+
+LispElement* add(const LispList* args)
+{
+    auto n = new LispNumber(0);
+    for (auto i = args->Value.begin(); i != args->Value.end(); i++)
+    {
+        n->Value += ((LispNumber*)(eval(*i)))->Value;
+    }
+    return n;
+}
+
+LispElement* subtract(const LispList* args)
+{
+    auto n = new LispNumber(0);
+    for (auto i = args->Value.begin(); i != args->Value.end(); i++)
+    {
+        if (i == args->Value.begin())
+        {
+            n->Value += ((LispNumber*)(eval(*i)))->Value;
+        }
+        else
+        {
+            n->Value -= ((LispNumber*)(eval(*i)))->Value;
+        }
+    }
+    return n;
+}
+
+void initializeEnvironment(Environment* env)
+{
+    auto nilPair = EnvPair(*nil, nil);
+    env->Insert(nilPair);
+
+    auto TPair = EnvPair(*T, T);
+    env->Insert(TPair);
+
+    auto addSym = new LispFunc(add);
+    auto addPair = EnvPair(LispSymbol("+"), addSym);
+    env->Insert(addPair);
+
+    auto subSym = new LispFunc(subtract);
+    auto subPair = EnvPair(LispSymbol("-"), subSym);
+    env->Insert(subPair);
 }
