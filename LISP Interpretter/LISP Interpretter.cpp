@@ -249,19 +249,69 @@ LispElement* subtract(const LispList* args)
     return n;
 }
 
+LispElement* multiply(const LispList* args)
+{
+    auto n = new LispNumber(1);
+    for (auto i = args->Value.begin(); i != args->Value.end(); i++)
+    {
+        n->Value *= ((LispNumber*)(eval(*i)))->Value;
+    }
+    return n;
+}
+
+LispElement* divide(const LispList* args)
+{
+    auto n = new LispNumber(1);
+    for (auto i = args->Value.begin(); i != args->Value.end(); i++)
+    {
+        if (i == args->Value.begin())
+        {
+            n->Value *= ((LispNumber*)(eval(*i)))->Value;
+        }
+        else
+        {
+            n->Value /= ((LispNumber*)(eval(*i)))->Value;
+        }
+    }
+    return n;
+}
+
+LispElement* ifFunc(const LispList* args)
+{
+    auto i = args->Value.begin();
+    auto cond = eval(*i);
+    if (cond->DataType == LispDataType::SYMBOL && *(LispSymbol*)cond == *nil)
+    {
+        i++;
+    }
+    i++;
+    return eval(*i);
+}
+
+
+void addFunction(Environment* env, string name, Func function)
+{
+    auto sym = new LispFunc(function);
+    auto pair = EnvPair(LispSymbol(name), sym);
+    env->Insert(pair);
+}
+
 void initializeEnvironment(Environment* env)
 {
+    //Constant Symbols
     auto nilPair = EnvPair(*nil, nil);
     env->Insert(nilPair);
 
     auto TPair = EnvPair(*T, T);
     env->Insert(TPair);
 
-    auto addSym = new LispFunc(add);
-    auto addPair = EnvPair(LispSymbol("+"), addSym);
-    env->Insert(addPair);
+    //Math Functions
+    addFunction(env, "+", add);
+    addFunction(env, "-", subtract);
+    addFunction(env, "*", multiply);
+    addFunction(env, "/", divide);
 
-    auto subSym = new LispFunc(subtract);
-    auto subPair = EnvPair(LispSymbol("-"), subSym);
-    env->Insert(subPair);
+    //Logic Functions
+    addFunction(env, "if", ifFunc);
 }
+
