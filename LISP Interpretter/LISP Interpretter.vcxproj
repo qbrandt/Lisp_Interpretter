@@ -150,6 +150,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Environment.h" />
+    <ClInclude Include="GlobalLispFunctions.h" />
     <ClInclude Include="LispElement.h" />
     <ClInclude Include="LispFunc.h" />
     <ClInclude Include="LispList.h" />

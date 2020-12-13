@@ -62,5 +62,8 @@
     <ClInclude Include="LispNumber.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="GlobalLispFunctions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

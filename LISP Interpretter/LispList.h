@@ -19,6 +19,7 @@ class LispList : public LispElement
 public:
 	LispList();
 	~LispList();
-	list<LispElement*> Value; //Won't allow dotted pair, but easier
+	LispElement* Value; 
+	LispElement* NextValue;
 };
 

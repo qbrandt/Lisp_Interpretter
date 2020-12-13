@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include"LispTypes.h"
 #include"Environment.h"
+#include"GlobalLispFunctions.h"
 
 //For full disclosure, I looked at the following lisp interpretter
 //to help with some problems I encountered. However I never copy/pasted 
@@ -18,6 +19,8 @@
 //however, is mine and mine alone, so I feel confident to call it my own.
 //The other interpretter: 
 //https://gist.github.com/ofan/721464/e1893899739abf7f3e4167bbb722b0420799047f
+
+//Also, I know that there are memory leaks everywhere
 
 auto const promptString = "lisp";
 
@@ -65,7 +68,7 @@ int main()
         printPrompt();
         string userInput = read();
         LispList* parsed = parse(userInput);
-        parsed = (LispList*)(parsed->Value.front());
+        parsed = (LispList*)car(parsed);
         LispElement* result = eval(parsed);
         printResult(result);
         cout << endl;
@@ -88,15 +91,18 @@ LispElement* eval(LispElement* elem, Environment* environment)
         LispElement* i = environment->Lookup(*sym);
         return environment->Lookup(*sym);
     }
+    if (elem->DataType == LispDataType::NUMBER)
+    {
+        return elem;
+
+    }
     if (elem->DataType == LispDataType::LIST)
     {
         LispList* list = (LispList*)(elem);
-        LispElement* front = list->Value.front();
-        list->Value.pop_front();
+        LispElement* front = car(list);
         auto evalResult = eval(front);
         auto lispFunc = (LispFunc*)(evalResult);
-        auto result = lispFunc->func(list);
-
+        auto result = lispFunc->func((LispList*)cdr(list));
     }
 }
 
@@ -108,6 +114,69 @@ LispElement* eval(LispElement* elem)
 void printPrompt()
 {
     currentOutput << promptString << "> ";
+}
+
+//https://stackoverflow.com/questions/29169153/how-do-i-verify-a-string-is-valid-double-even-if-it-has-a-point-in-it/29169235
+bool isNumber(const std::string& s)
+{
+    char* end = nullptr;
+    double val = strtod(s.c_str(), &end);
+    return end != s.c_str() && *end == '\0' && val != HUGE_VAL;
+}
+
+LispList* makeList(LispElement* element)
+{
+    LispList* list = new LispList();
+    list->Value = element;
+    list->NextValue = nil;
+    return list;
+}
+
+LispElement* cons(LispElement* arg1, LispElement* arg2)
+{
+    LispList* outerList = makeList(arg1);
+    outerList->NextValue = arg2;
+    return outerList;
+}
+
+LispElement* append(LispElement* arg1, LispElement* arg2)
+{
+    if (arg1 == nil)
+    {
+        return arg2;
+    }
+    LispList* fullList = (LispList*)arg1;
+    LispElement* list = fullList;
+    LispList* trailer = (LispList*)list;
+    while (list != nil)
+    {
+        trailer = (LispList*)list;
+        list = trailer->NextValue;
+    }
+    trailer->NextValue = arg2;
+    return fullList;
+}
+
+LispElement* copy(const LispElement* element)
+{
+    if (element->DataType == LispDataType::SYMBOL)
+    {
+        LispSymbol* sym = (LispSymbol*)(element);
+        return sym;
+    }
+    else if (element->DataType == LispDataType::NUMBER)
+    {
+        LispNumber* num = (LispNumber*)(element);
+        return num;
+    }
+    else if (element->DataType == LispDataType::LIST)
+    {
+        LispList* list = (LispList*)(element);
+        LispList* copyList = new LispList();
+        copyList->Value = copy(car(list));
+        copyList->NextValue = copy(cdr(list));
+        return copyList;
+    }
 }
 
 void printResult(LispElement* element)
@@ -124,31 +193,30 @@ void printResult(LispElement* element)
     }
     else if (element->DataType == LispDataType::LIST)
     {
-        LispList* list = (LispList*)(element);
+        LispElement* list = copy(element);
         cout << "(";
-        for (auto i = list->Value.begin(); i != list->Value.end();i++)
+        bool first = true;
+        while (list != nil)
         {
-            if (i != list->Value.begin())
+            if (first)
+            {
+                first = false;
+            }
+            else
             {
                 cout << " ";
             }
-            printResult(*i);
+            printResult(car((LispList*)list));
+            list = ((LispList*)list)->NextValue;
         }
         cout << ")";
     }
     //currentOutput << result << endl;
 }
 
-//https://stackoverflow.com/questions/29169153/how-do-i-verify-a-string-is-valid-double-even-if-it-has-a-point-in-it/29169235
-bool isNumber(const std::string& s)
-{
-    char* end = nullptr;
-    double val = strtod(s.c_str(), &end);
-    return end != s.c_str() && *end == '\0' && val != HUGE_VAL;
-}
 
 
-void parse(istream& sin, LispList* list)
+LispList* parse(istream& sin, LispList* list)
 {
     if (!sin.eof())
     {
@@ -156,56 +224,87 @@ void parse(istream& sin, LispList* list)
         sin >> token;
         if (token.empty())
         {
-            return;
+            return list;
         }
 
         unsigned int listStart = token.find('(');
         unsigned int listEnd = token.find(')');
         if (listStart != string::npos)
         {
-            LispList* innerList = new LispList();
-            parse(sin, innerList);
-            list->Value.push_back(innerList);
+            LispElement* innerList = parse(sin, NULL);
+            if (list == NULL)
+            {
+                list = makeList(innerList);
+            }
+            else
+            {
+                append(list, makeList(innerList));
+            }
             parse(sin, list);
-            return;
         }
         else if (listEnd != string::npos)
         {
-            return;
+
         }
         else if (isNumber(token))
         {
-            list->Value.push_back(new LispNumber(std::stod(token)));
+            LispNumber* num = new LispNumber(std::stod(token));
+            if (list == NULL)
+            {
+                list = makeList(num);
+            }
+            else
+            {
+                append(list, makeList(num));
+            }
             parse(sin, list);
         }
         else //is Symbol
         { 
             if (token == "'")
             {
-                LispList* quoteList = new LispList();
-                quoteList->Value.push_back(new LispSymbol("QUOTE"));
-                parse(sin, quoteList);
-                list->Value.push_back(quoteList);
+                LispList* quoteList = makeList(new LispSymbol("QUOTE"));
+                LispList* rest = (LispList*)parse(sin, NULL);
+                quoteList = (LispList*)append(quoteList, makeList(car(rest)));
+                quoteList = (LispList*)cons(quoteList, cdr(rest));
+                
+                if (list == NULL)
+                {
+                    list = quoteList;
+                }
+                else
+                {
+                    append(list, quoteList);
+                }
+                parse(sin, list);
             }
             else
             {
-                list->Value.push_back(new LispSymbol(token));
+                LispSymbol* sym = new LispSymbol(token);
+                if (list == NULL)
+                {
+                    list = makeList(sym);
+                }
+                else
+                {
+                    append(list, makeList(sym));
+                }
                 parse(sin, list);
             }
         }
     }
+    return list;
 }
 
 LispList* parse(istream& sin)
 {
-    LispList* result = new LispList();
-    parse(sin, result);
+    LispList* result = parse(sin, NULL);
     return result;
 }
 
 LispList* parse(string input)
 {
-    string specialSpaceChars[] = {"(",")"};
+    string specialSpaceChars[] = {"(",")","'"};
 
     for (string x : specialSpaceChars)
     {
@@ -222,70 +321,113 @@ LispList* parse(string input)
     return parse(sin);
 }
 
+LispElement* quote(const LispList* args)
+{
+    return first(args);
+}
+
+LispElement* car(const LispList* args)
+{
+    return args->Value;
+}
+
+LispElement* cdr(const LispList* args)
+{
+    return args->NextValue;
+}
+
+LispElement* first(const LispList* args)
+{
+    return car(args);
+}
+
+LispElement* second(const LispList* args)
+{
+    return car((LispList*)cdr(args));
+}
+
+LispElement* third(const LispList* args)
+{
+    return car((LispList*)cdr((LispList*)cdr(args)));
+}
+
+LispElement* cons(const LispList* args)
+{
+    return cons(first(args),second(args));
+}
+
+LispElement* append(const LispList* args)
+{
+    return append(first(args), second(args));
+}
+
+LispElement* list(const LispList* args)
+{
+    return (LispElement*)args;
+}
+
 LispElement* add(const LispList* args)
 {
-    auto n = new LispNumber(0);
-    for (auto i = args->Value.begin(); i != args->Value.end(); i++)
-    {
-        n->Value += ((LispNumber*)(eval(*i)))->Value;
-    }
-    return n;
+    LispElement* second = car(((LispList*)cdr(args)));
+    auto value = ((LispNumber*)(eval(car(args))))->Value + ((LispNumber*)(eval(second)))->Value;
+    return new LispNumber(value);
 }
-
-LispElement* subtract(const LispList* args)
-{
-    auto n = new LispNumber(0);
-    for (auto i = args->Value.begin(); i != args->Value.end(); i++)
-    {
-        if (i == args->Value.begin())
-        {
-            n->Value += ((LispNumber*)(eval(*i)))->Value;
-        }
-        else
-        {
-            n->Value -= ((LispNumber*)(eval(*i)))->Value;
-        }
-    }
-    return n;
-}
-
-LispElement* multiply(const LispList* args)
-{
-    auto n = new LispNumber(1);
-    for (auto i = args->Value.begin(); i != args->Value.end(); i++)
-    {
-        n->Value *= ((LispNumber*)(eval(*i)))->Value;
-    }
-    return n;
-}
-
-LispElement* divide(const LispList* args)
-{
-    auto n = new LispNumber(1);
-    for (auto i = args->Value.begin(); i != args->Value.end(); i++)
-    {
-        if (i == args->Value.begin())
-        {
-            n->Value *= ((LispNumber*)(eval(*i)))->Value;
-        }
-        else
-        {
-            n->Value /= ((LispNumber*)(eval(*i)))->Value;
-        }
-    }
-    return n;
-}
+//
+//LispElement* subtract(const LispList* args)
+//{
+//    auto n = new LispNumber(0);
+//    for (auto i = args->Value.begin(); i != args->Value.end(); i++)
+//    {
+//        if (i == args->Value.begin())
+//        {
+//            n->Value += ((LispNumber*)(eval(*i)))->Value;
+//        }
+//        else
+//        {
+//            n->Value -= ((LispNumber*)(eval(*i)))->Value;
+//        }
+//    }
+//    return n;
+//}
+//
+//LispElement* multiply(const LispList* args)
+//{
+//    auto n = new LispNumber(1);
+//    for (auto i = args->Value.begin(); i != args->Value.end(); i++)
+//    {
+//        n->Value *= ((LispNumber*)(eval(*i)))->Value;
+//    }
+//    return n;
+//}
+//
+//LispElement* divide(const LispList* args)
+//{
+//    auto n = new LispNumber(1);
+//    for (auto i = args->Value.begin(); i != args->Value.end(); i++)
+//    {
+//        if (i == args->Value.begin())
+//        {
+//            n->Value *= ((LispNumber*)(eval(*i)))->Value;
+//        }
+//        else
+//        {
+//            n->Value /= ((LispNumber*)(eval(*i)))->Value;
+//        }
+//    }
+//    return n;
+//}
 
 LispElement* ifFunc(const LispList* args)
 {
-    auto i = args->Value.begin();
-    auto cond = eval(*i);
+    auto cond = first(args);
     if (cond->DataType == LispDataType::SYMBOL && *(LispSymbol*)cond == *nil)
     {
-        i++;
+        return eval(third(args));
     }
-    i++;
-    return eval(*i);
+    else
+    {
+        return eval(second(args));
+    }
 }
 
 
@@ -306,12 +448,14 @@ void initializeEnvironment(Environment* env)
     env->Insert(TPair);
 
     //Math Functions
-    addFunction(env, "+", add);
+    addFunction(env, "+", add);/*
     addFunction(env, "-", subtract);
     addFunction(env, "*", multiply);
-    addFunction(env, "/", divide);
+    addFunction(env, "/", divide);*/
 
     //Logic Functions
+    addFunction(env, "quote", quote);
     addFunction(env, "if", ifFunc);
+
 }
 
