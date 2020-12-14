@@ -32,5 +32,9 @@ LispElement* Environment::operator[](LispSymbol& sym)
 
 void Environment::Insert(VarPair pair)
 {
-	env.insert(pair);
+	auto inserted = env.insert(pair);
+	if (!inserted.second)
+	{
+		env[pair.first] = pair.second;
+	};
 }

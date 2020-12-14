@@ -67,10 +67,19 @@ int main()
     {
         printPrompt();
         string userInput = read();
-        LispList* parsed = parse(userInput);
-        parsed = (LispList*)car(parsed);
-        LispElement* result = eval(parsed);
-        printResult(result);
+        try
+        {
+            LispList* parsed = parse(userInput);
+            /*printResult(parsed);
+            cout << endl;*/
+            parsed = (LispList*)frontOfList(parsed);
+            LispElement* result = eval(parsed);
+            printResult(result);
+        }
+        catch (...)
+        {
+            cout << endl << "Break";
+        }
         cout << endl;
     }
 }
@@ -99,10 +108,25 @@ LispElement* eval(LispElement* elem, Environment* environment)
     if (elem->DataType == LispDataType::LIST)
     {
         LispList* list = (LispList*)(elem);
-        LispElement* front = car(list);
-        auto evalResult = eval(front);
-        auto lispFunc = (LispFunc*)(evalResult);
-        auto result = lispFunc->func((LispList*)cdr(list));
+        LispElement* front = frontOfList(list);
+        //SetQ is not a seperate function because it requires access to the environment
+        if (front->DataType == LispDataType::SYMBOL && ((LispSymbol*)front)->Name == "SETQ")
+        {
+            LispSymbol* name = (LispSymbol*)secondOfList(list);
+            LispElement* val = eval(thirdOfList(list));
+            auto newValue = VarPair(*name, val);
+            environment->Insert(newValue);
+            return val;
+
+        }
+        else
+        {
+            auto evalResult = eval(front);
+            auto lispFunc = (LispFunc*)(evalResult);
+            auto result = lispFunc->func((LispList*)restOfList(list));
+            return result;
+        }
+
     }
 }
 
@@ -173,8 +197,8 @@ LispElement* copy(const LispElement* element)
     {
         LispList* list = (LispList*)(element);
         LispList* copyList = new LispList();
-        copyList->Value = copy(car(list));
-        copyList->NextValue = copy(cdr(list));
+        copyList->Value = copy(frontOfList(list));
+        copyList->NextValue = copy(restOfList(list));
         return copyList;
     }
 }
@@ -196,7 +220,7 @@ void printResult(LispElement* element)
         LispElement* list = copy(element);
         cout << "(";
         bool first = true;
-        while (list != nil)
+        while (list != nil && list->DataType == LispDataType::LIST)
         {
             if (first)
             {
@@ -206,9 +230,15 @@ void printResult(LispElement* element)
             {
                 cout << " ";
             }
-            printResult(car((LispList*)list));
+            printResult(frontOfList((LispList*)list));
             list = ((LispList*)list)->NextValue;
         }
+        if (list != nil)
+        {
+            cout << " . ";
+            printResult(list);
+        }
+
         cout << ")";
     }
     //currentOutput << result << endl;
@@ -265,8 +295,8 @@ LispList* parse(istream& sin, LispList* list)
             {
                 LispList* quoteList = makeList(new LispSymbol("QUOTE"));
                 LispList* rest = (LispList*)parse(sin, NULL);
-                quoteList = (LispList*)append(quoteList, makeList(car(rest)));
-                quoteList = (LispList*)cons(quoteList, cdr(rest));
+                quoteList = (LispList*)append(quoteList, makeList(frontOfList(rest)));
+                quoteList = (LispList*)cons(quoteList, restOfList(rest));
                 
                 if (list == NULL)
                 {
@@ -323,17 +353,46 @@ LispList* parse(string input)
 
 LispElement* quote(const LispList* args)
 {
-    return first(args);
+    return firstOfList(args);
+}
+
+LispElement* frontOfList(const LispList* args)
+{
+    //printResult((LispElement*)args);
+
+    return args->Value;
+}
+
+LispElement* restOfList(const LispList* args)
+{
+    return args->NextValue;
+}
+
+LispElement* firstOfList(const LispList* args)
+{
+    return frontOfList(args);
+}
+
+LispElement* secondOfList(const LispList* args)
+{
+    return frontOfList((LispList*)restOfList(args));
+}
+
+LispElement* thirdOfList(const LispList* args)
+{
+    return frontOfList((LispList*)restOfList((LispList*)restOfList(args)));
 }
 
 LispElement* car(const LispList* args)
 {
-    return args->Value;
+    //printResult((LispElement*)args);
+
+    return ((LispList*)eval(args->Value))->Value;
 }
 
 LispElement* cdr(const LispList* args)
 {
-    return args->NextValue;
+    return ((LispList*)eval(args->Value))->NextValue;
 }
 
 LispElement* first(const LispList* args)
@@ -343,22 +402,22 @@ LispElement* first(const LispList* args)
 
 LispElement* second(const LispList* args)
 {
-    return car((LispList*)cdr(args));
+    return firstOfList((LispList*)cdr(args));
 }
 
 LispElement* third(const LispList* args)
 {
-    return car((LispList*)cdr((LispList*)cdr(args)));
+    return firstOfList((LispList*)restOfList((LispList*)cdr(args)));
 }
 
 LispElement* cons(const LispList* args)
 {
-    return cons(first(args),second(args));
+    return cons(eval(firstOfList(args)),eval(secondOfList(args)));
 }
 
 LispElement* append(const LispList* args)
 {
-    return append(first(args), second(args));
+    return append(eval(firstOfList(args)), eval(secondOfList(args)));
 }
 
 LispElement* list(const LispList* args)
@@ -368,67 +427,56 @@ LispElement* list(const LispList* args)
 
 LispElement* add(const LispList* args)
 {
-    LispElement* second = car(((LispList*)cdr(args)));
-    auto value = ((LispNumber*)(eval(car(args))))->Value + ((LispNumber*)(eval(second)))->Value;
+    auto firstVal = ((LispNumber*)eval(firstOfList(args)))->Value;
+    auto secondVal = ((LispNumber*)eval(secondOfList(args)))->Value;
+    auto value = firstVal + secondVal;
     return new LispNumber(value);
 }
-//
-//LispElement* subtract(const LispList* args)
-//{
-//    auto n = new LispNumber(0);
-//    for (auto i = args->Value.begin(); i != args->Value.end(); i++)
-//    {
-//        if (i == args->Value.begin())
-//        {
-//            n->Value += ((LispNumber*)(eval(*i)))->Value;
-//        }
-//        else
-//        {
-//            n->Value -= ((LispNumber*)(eval(*i)))->Value;
-//        }
-//    }
-//    return n;
-//}
-//
-//LispElement* multiply(const LispList* args)
-//{
-//    auto n = new LispNumber(1);
-//    for (auto i = args->Value.begin(); i != args->Value.end(); i++)
-//    {
-//        n->Value *= ((LispNumber*)(eval(*i)))->Value;
-//    }
-//    return n;
-//}
-//
-//LispElement* divide(const LispList* args)
-//{
-//    auto n = new LispNumber(1);
-//    for (auto i = args->Value.begin(); i != args->Value.end(); i++)
-//    {
-//        if (i == args->Value.begin())
-//        {
-//            n->Value *= ((LispNumber*)(eval(*i)))->Value;
-//        }
-//        else
-//        {
-//            n->Value /= ((LispNumber*)(eval(*i)))->Value;
-//        }
-//    }
-//    return n;
-//}
+
+LispElement* subtract(const LispList* args)
+{
+    auto firstVal = ((LispNumber*)eval(firstOfList(args)))->Value;
+    auto secondVal = ((LispNumber*)eval(secondOfList(args)))->Value;
+    auto value = firstVal - secondVal;
+    return new LispNumber(value);
+}
+
+LispElement* multiply(const LispList* args)
+{
+    auto firstVal = ((LispNumber*)eval(firstOfList(args)))->Value;
+    auto secondVal = ((LispNumber*)eval(secondOfList(args)))->Value;
+    auto value = firstVal * secondVal;
+    return new LispNumber(value);
+}
+
+LispElement* divide(const LispList* args)
+{
+    auto firstVal = ((LispNumber*)eval(firstOfList(args)))->Value;
+    auto secondVal = ((LispNumber*)eval(secondOfList(args)))->Value;
+    auto value = firstVal / secondVal;
+    return new LispNumber(value);
+}
 
 LispElement* ifFunc(const LispList* args)
 {
-    auto cond = first(args);
+    auto cond = eval(firstOfList(args));
     if (cond->DataType == LispDataType::SYMBOL && *(LispSymbol*)cond == *nil)
     {
-        return eval(third(args));
+        return eval(thirdOfList(args));
     }
     else
     {
-        return eval(second(args));
+        return eval(secondOfList(args));
     }
 }
+
+LispElement* exit(const LispList* args)
+{
+    quit = true;
+    return new LispSymbol("EXIT");
+}
+
+
 
 
 void addFunction(Environment* env, string name, Func function)
@@ -447,15 +495,26 @@ void initializeEnvironment(Environment* env)
     auto TPair = EnvPair(*T, T);
     env->Insert(TPair);
 
+    addFunction(env, "exit", exit);
+
     //Math Functions
-    addFunction(env, "+", add);/*
+    addFunction(env, "+", add);
     addFunction(env, "-", subtract);
     addFunction(env, "*", multiply);
-    addFunction(env, "/", divide);*/
+    addFunction(env, "/", divide);
 
     //Logic Functions
     addFunction(env, "quote", quote);
     addFunction(env, "if", ifFunc);
 
+    //List Functions
+    addFunction(env, "car", car);
+    addFunction(env, "cdr", cdr);
+    addFunction(env, "cons", cons);
+    addFunction(env, "append", append);
+    addFunction(env, "list", list);
+    addFunction(env, "first", first);
+    addFunction(env, "second", second);
+    addFunction(env, "third", third);
 }
 

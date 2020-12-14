@@ -3,13 +3,15 @@
 
 LispElement* quote(const LispList* args);
 
-LispElement* car(const LispList* args);
+LispElement* frontOfList(const LispList* args);
 
-LispElement* cdr(const LispList* args);
+LispElement* restOfList(const LispList* args);
 
-LispElement* first(const LispList* args);
+LispElement* firstOfList(const LispList* args);
 
-LispElement* second(const LispList* args);
+LispElement* secondOfList(const LispList* args);
+
+LispElement* thirdOfList(const LispList* args);
 
 LispElement* cons(const LispList* args);
 
