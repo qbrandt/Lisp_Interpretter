@@ -5,4 +5,5 @@
 #include"LispList.h"
 #include"LispFunc.h"
 #include"LispNumber.h"
+#include"LispLambda.h"
 //#include<memory>

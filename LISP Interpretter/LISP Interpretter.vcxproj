@@ -140,9 +140,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Environment.cpp" />
+    <ClCompile Include="GlobalLispFunctions.cpp" />
     <ClCompile Include="LISP Interpretter.cpp" />
     <ClCompile Include="LispElement.cpp" />
     <ClCompile Include="LispFunc.cpp" />
+    <ClCompile Include="LispLambda.cpp" />
     <ClCompile Include="LispList.cpp" />
     <ClCompile Include="LispNumber.cpp" />
     <ClCompile Include="LispSymbol.cpp" />
@@ -153,6 +155,7 @@
     <ClInclude Include="GlobalLispFunctions.h" />
     <ClInclude Include="LispElement.h" />
     <ClInclude Include="LispFunc.h" />
+    <ClInclude Include="LispLambda.h" />
     <ClInclude Include="LispList.h" />
     <ClInclude Include="LispDataType.h" />
     <ClInclude Include="LispNumber.h" />

@@ -17,7 +17,7 @@ LispElement* Environment::Lookup(LispSymbol& sym)
 	}
 	else if (outer != nullptr)
 	{
-		return outer->operator[](sym);
+		return outer->Lookup(sym);
 	}
 	else
 	{
@@ -36,5 +36,5 @@ void Environment::Insert(VarPair pair)
 	if (!inserted.second)
 	{
 		env[pair.first] = pair.second;
-	};
+	}
 }

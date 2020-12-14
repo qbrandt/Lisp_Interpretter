@@ -7,5 +7,6 @@ enum class LispDataType
 	STR = 3,
 	SYMBOL = 4,
 	FUNC = 5,
+	LAMBDA = 6
 };
 
